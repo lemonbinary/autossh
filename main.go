@@ -22,11 +22,12 @@ var (
 
 func search(list []*Node) (*Node, error) {
     prompt := promptui.Select {
-        Label: "select host",
+        Label: "select host (↓ ↑ → ← move and / toggles search)",
         Items: list,
         Templates: templates,
         Size: 20,
         HideSelected: true,
+        StartInSearchMode: true,
         Searcher: func(input string, index int) bool {
             n := list[index]
             content := fmt.Sprintf("%s %s %s", n.Name, n.User, n.Host)
