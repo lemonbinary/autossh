@@ -16,13 +16,22 @@ type Node struct {
     Password string `yaml:"password"`
 }
 
-func loadConfig() ([]*Node, error) {
+func getNodeFile() (string, error) {
     u, err := user.Current()
+    if err != nil {
+        return "", err
+    }
+    
+    file := filepath.Join(u.HomeDir, ".ssh/assh.yaml")
+    return file, nil
+}
+
+func loadNode() ([]*Node, error) {
+    file, err := getNodeFile()
     if err != nil {
         return nil, err
     }
     
-    file := filepath.Join(u.HomeDir, ".ssh/assh.yaml")
     body, err := ioutil.ReadFile(file)
     if err != nil {
         return nil, err
@@ -35,4 +44,19 @@ func loadConfig() ([]*Node, error) {
     }
     
     return data, nil
+}
+
+func saveNode(list []*Node) error {
+    file, err := getNodeFile()
+    if err != nil {
+        return err
+    }
+    
+    b, err := yaml.Marshal(&list)
+    if err != nil {
+        return err
+    }
+    
+    err = ioutil.WriteFile(file, b, 0644)
+    return err
 }
