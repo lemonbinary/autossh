@@ -20,9 +20,6 @@ func startTerminal(node *Node) error {
         Timeout: time.Second * 10,
     }
     
-    var (
-        termWidth, termHeight = 80, 24
-    )
     conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", node.Host, node.Port), config)
     if err != nil {
         return err
@@ -60,8 +57,8 @@ func startTerminal(node *Node) error {
         return err
     }
     
-    termWidth = int(winsize.Width)
-    termHeight = int(winsize.Height)
+    termWidth  := int(winsize.Width)
+    termHeight := int(winsize.Height)
     
     if err := session.RequestPty("xterm", termHeight, termWidth, modes); err != nil {
         return err
@@ -71,37 +68,41 @@ func startTerminal(node *Node) error {
         return err
     }
     
-    // monitor for sigwinch
-    go monitorWindow(session, os.Stdout.Fd())
+    go monitorWindow(session, os.Stdin.Fd())
     session.Wait()
     
     return nil
 }
 
 func monitorWindow(session *ssh.Session, fd uintptr) {
-    sigs := make(chan os.Signal, 1)
+    sig := make(chan os.Signal, 1)
     
-    signal.Notify(sigs, syscall.SIGWINCH)
-    defer signal.Stop(sigs)
+    signal.Notify(sig, syscall.SIGWINCH)
+    defer signal.Stop(sig)
     
-    // resize the tty if any signals received
-    for range sigs {
-        session.SendRequest("window-change", false, termSize(fd))
+    for range sig {
+        data, err := termSize(fd)
+        if err != nil {
+            return
+        }
+        session.SendRequest("window-change", false, data)
     }
 }
 
-func termSize(fd uintptr) []byte {
+func termSize(fd uintptr) ([]byte, error) {
     size := make([]byte, 16)
     
     winsize, err := term.GetWinsize(fd)
     if err != nil {
-        binary.BigEndian.PutUint32(size, uint32(80))
-        binary.BigEndian.PutUint32(size[4:], uint32(24))
-        return size
+        return nil, err
     }
     
     binary.BigEndian.PutUint32(size, uint32(winsize.Width))
     binary.BigEndian.PutUint32(size[4:], uint32(winsize.Height))
     
-    return size
+    if debugLog != nil {
+        debugLog.Println("winch", winsize.Width, winsize.Height)
+    }
+    
+    return size, nil
 }

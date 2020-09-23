@@ -69,7 +69,7 @@ func main() {
         return
     }
     
-    if *debugFlag {
+    if debugLog != nil {
         debugLog.Println("node n", len(nodes))
     }
     
