@@ -12,8 +12,10 @@ type Node struct {
     Name     string `yaml:"name"`
     Host     string `yaml:"host"`
     User     string `yaml:"user"`
-    Port     int    `yaml:"port"`
+    Port     string `yaml:"port"`
     Password string `yaml:"password"`
+    Referer  string `yaml:"referer"`
+    CMD      string `yaml:"cmd"`
 }
 
 func getNodeFile() (string, error) {

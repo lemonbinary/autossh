@@ -1,6 +1,7 @@
 package main
 
 import (
+    "net"
     "encoding/binary"
     "os"
     "time"
@@ -12,7 +13,18 @@ import (
     "github.com/moby/term"
 )
 
-func startTerminal(node *Node) error {
+func startTerminal(node *Node, all []*Node) error {
+    cmd := node.CMD
+    
+    if node.Referer != "" {
+        for _, n := range all {
+            if n.Name == node.Referer {
+                node = n
+                break
+            }
+        }
+    }
+    
     config := &ssh.ClientConfig {
         User: node.User,
         Auth: []ssh.AuthMethod{ssh.Password(node.Password)},
@@ -20,12 +32,13 @@ func startTerminal(node *Node) error {
         Timeout: time.Second * 10,
     }
     
-    conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%d", node.Host, node.Port), config)
+    client, err := ssh.Dial("tcp", net.JoinHostPort(node.Host, node.Port), config)
     if err != nil {
         return err
     }
+    defer client.Close()
     
-    session, err := conn.NewSession()
+    session, err := client.NewSession()
     if err != nil {
         return err
     }
@@ -66,6 +79,16 @@ func startTerminal(node *Node) error {
     
     if err := session.Shell(); err != nil {
         return err
+    }
+    
+    if cmd != "" {
+        go func ()  {
+            for {
+                time.Sleep(time.Second)
+                os.Stdin.WriteString(cmd)
+                return
+            }
+        }()
     }
     
     go monitorWindow(session, os.Stdin.Fd())

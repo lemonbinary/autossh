@@ -1,7 +1,6 @@
 package main
 
 import (
-    "strconv"
     "strings"
     "fmt"
     
@@ -11,8 +10,15 @@ import (
 func search(list []*Node) (int, error) {
     templates := &promptui.SelectTemplates {
         Label:    "※ {{.|green}}",
-        Active:   "➤ {{.Name|yellow}} {{if .Host}}{{if .User}}{{.User|yellow}}{{`@`|yellow}}{{end}}{{.Host|yellow}}{{end}}",
-        Inactive: "  {{.Name|faint}} {{if .Host}}{{if .User}}{{.User|faint}}{{`@`|faint}}{{end}}{{.Host|faint}}{{end}}",
+        Active:   "➤ {{.Name|yellow}} {{.User|yellow}}{{`@`|yellow}}{{.Host|yellow}} {{.Referer|yellow}}",
+        Inactive: "  {{.Name|faint}} {{.User|faint}}{{`@`|faint}}{{.Host|faint}} {{.Referer|yellow}}",
+        Details: `
+{{ "Name:" | faint }} {{ .Name }}
+{{ "User:" | faint }} {{ .User }}
+{{ "Host:" | faint }} {{ .Host }}
+{{ "Port:" | faint }} {{ .Port }}
+{{ "Referer:" | faint }} {{ .Referer }}
+{{ "CMD:" | faint }} {{ .CMD }}`,
     }
     
     prompt := promptui.Select {
@@ -81,22 +87,17 @@ func add() *Node {
     }
 
     prompt := promptui.Prompt {
-        Label: "ADD (name,host,user,port,password)",
+        Label: "ADD (name,host,user,port,password,referer,cmd)",
         Validate: func(input string) error {
             fields := strings.Split(input, ",")
-            for _, f := range fields {
-                if f == "" {
-                    return fmt.Errorf("empty field is not allow")
-                }
-            }
-            if len(fields) != 5 {
+            if len(fields) != 7 {
                 return fmt.Errorf("error format")
             }
             
             return nil
         },
         Templates: temp,
-        Default: "name,host,user,port,password",
+        Default: "name,host,user,port,password,referer,cmd",
         AllowEdit: true,
     }
     
@@ -109,9 +110,11 @@ func add() *Node {
         Name: fields[0],
         Host: fields[1],
         User: fields[2],
+        Port: fields[3],
         Password: fields[4],
+        Referer: fields[5],
+        CMD: fields[6],
     }
-    node.Port, _ = strconv.Atoi(fields[3])
     
     return node
 }
@@ -128,7 +131,7 @@ func del(nodes []*Node) []*Node {
 
 func startPrompt(nodes []*Node) {
 start:
-    list := []*Node{&Node{Name:"OPTION"}}
+    list := []*Node{{Name:"OPTION"}}
     list = append(list, nodes...)
 
     index, err := search(list)
@@ -143,7 +146,7 @@ start:
         goto start
     }
     
-    err = startTerminal(list[index])
+    err = startTerminal(list[index], nodes)
     if err != nil {
         fmt.Println("start terminal failed:", err)
     }
