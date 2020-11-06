@@ -1,6 +1,9 @@
 package main
 
 import (
+    "path/filepath"
+    "os/user"
+    "io/ioutil"
     "net"
     "encoding/binary"
     "os"
@@ -12,6 +15,24 @@ import (
     "golang.org/x/crypto/ssh"
     "github.com/moby/term"
 )
+
+func loadPrivateKey() (ssh.Signer, error) {
+    usr, err := user.Current()
+    if err != nil {
+        return nil, err
+    }
+    body, err := ioutil.ReadFile(filepath.Join(usr.HomeDir, ".ssh/id_rsa"))
+    if err != nil {
+        return nil, err
+    }
+    signer, err := ssh.ParsePrivateKey(body)
+    if err != nil {
+        return nil, err
+    }
+    
+    return signer, nil
+}
+
 
 func startTerminal(node *Node, all []*Node) error {
     cmd := node.CMD
@@ -27,10 +48,13 @@ func startTerminal(node *Node, all []*Node) error {
     
     config := &ssh.ClientConfig {
         User: node.User,
-        Auth: []ssh.AuthMethod{ssh.Password(node.Password)},
         HostKeyCallback: ssh.InsecureIgnoreHostKey(),
         Timeout: time.Second * 10,
     }
+    if sig, err := loadPrivateKey(); err == nil {
+        config.Auth = append(config.Auth, ssh.PublicKeys(sig))
+    }
+    config.Auth = append(config.Auth, ssh.Password(node.Password))
     
     client, err := ssh.Dial("tcp", net.JoinHostPort(node.Host, node.Port), config)
     if err != nil {
