@@ -116,6 +116,8 @@ func startTerminal(node *Node, all []*Node) error {
     }
     
     go monitorWindow(session, os.Stdin.Fd())
+    go keepAlive(client)
+    
     session.Wait()
     
     return nil
@@ -152,4 +154,11 @@ func termSize(fd uintptr) ([]byte, error) {
     }
     
     return size, nil
+}
+
+func keepAlive(client *ssh.Client) {
+    for {
+        <- time.After(time.Second * 10)
+        client.SendRequest("keepalive", false, nil)
+    }
 }
